@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.17.0">
+  <bpmn:collaboration id="Collaboration_Screening">
+    <bpmn:participant id="Participant_Proces" name="Proces 1: Screening &amp; Enrollment" processRef="Process_Screening" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Screening" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Uczestnik" name="Uczestnik">
+        <bpmn:flowNodeRef>StartEvent_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_eConsent_Patient</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Site" name="Ośrodek (PI / Koordynator)">
+        <bpmn:flowNodeRef>Task_PreScreening</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_PreScreen_OK</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Baseline_Visit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Eligibility</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Dispensing</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Fail_Pre</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Fail_Base</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_System" name="Systemy (eConsent, IRT, EDC)">
+        <bpmn:flowNodeRef>ServiceTask_Validate_Consent</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Randomization</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Allocation</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_1" name="Zgłoszenie kandydata">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_PreScreening" name="1. Pre-screening (Wstępna weryfikacja)">
+      <bpmn:documentation>Sprawdzenie podstawowych kryteriów włączenia/wyłączenia.</bpmn:documentation>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_PreScreen_OK" name="Kandydat wstępnie zakwalifikowany?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tak_Pre</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Nie_Pre</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_eConsent_Patient" name="2. eConsent (Podpisanie zgody)">
+      <bpmn:documentation>Wykorzystanie tabletu klinicznego i Serwera Podpisu.</bpmn:documentation>
+      <bpmn:incoming>Flow_Tak_Pre</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_Validate_Consent" name="Walidacja podpisu (System eConsent)">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_Baseline_Visit" name="3. Wizyta Baseline (eCRF/EDC)">
+      <bpmn:documentation>Pełne badanie lekarskie i wprowadzenie danych do EDC.</bpmn:documentation>
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Eligibility" name="Pełna kwalifikacja?">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tak_Eligible</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Nie_Eligible</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ServiceTask_Randomization" name="4. Randomizacja (Silnik IRT)">
+      <bpmn:documentation>Przydział do grupy badawczej (Algorytm).</bpmn:documentation>
+      <bpmn:incoming>Flow_Tak_Eligible</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_Allocation" name="5. Alokacja materiałów (IRT)">
+      <bpmn:documentation>Wyznaczenie numeru zestawu (Kit ID) dla pacjenta.</bpmn:documentation>
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_Dispensing" name="Wydanie leku/zestawu">
+      <bpmn:documentation>Fizyczne przekazanie zestawu wskazanego przez IRT.</bpmn:documentation>
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_Success" name="Pacjent Zrekrutowany (Enrolled)">
+      <bpmn:incoming>Flow_8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Fail_Pre" name="Odrzucenie (Pre-screen fail)">
+      <bpmn:incoming>Flow_Nie_Pre</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Fail_Base" name="Screen Failure">
+      <bpmn:incoming>Flow_Nie_Eligible</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_PreScreening" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_PreScreening" targetRef="Gateway_PreScreen_OK" />
+    <bpmn:sequenceFlow id="Flow_Tak_Pre" name="Tak" sourceRef="Gateway_PreScreen_OK" targetRef="Task_eConsent_Patient" />
+    <bpmn:sequenceFlow id="Flow_Nie_Pre" name="Nie" sourceRef="Gateway_PreScreen_OK" targetRef="EndEvent_Fail_Pre" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_eConsent_Patient" targetRef="Task_Validate_Consent" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_Validate_Consent" targetRef="Task_Baseline_Visit" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_Baseline_Visit" targetRef="Gateway_Eligibility" />
+    <bpmn:sequenceFlow id="Flow_Tak_Eligible" name="Tak" sourceRef="Gateway_Eligibility" targetRef="ServiceTask_Randomization" />
+    <bpmn:sequenceFlow id="Flow_Nie_Eligible" name="Nie" sourceRef="Gateway_Eligibility" targetRef="EndEvent_Fail_Base" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="ServiceTask_Randomization" targetRef="ServiceTask_Allocation" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="ServiceTask_Allocation" targetRef="Task_Dispensing" />
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Task_Dispensing" targetRef="EndEvent_Success" />
+    <bpmn:serviceTask id="ServiceTask_Validate_Consent" name="Logowanie zgody (System)" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Screening">
+      <bpmndi:BPMNShape id="Participant_Shape" bpmnElement="Participant_Proces" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1400" height="650" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Uczestnik_Shape" bpmnElement="Lane_Uczestnik" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="1370" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Site_Shape" bpmnElement="Lane_Site" isHorizontal="true">
+        <dc:Bounds x="190" y="230" width="1370" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_System_Shape" bpmnElement="Lane_System" isHorizontal="true">
+        <dc:Bounds x="190" y="510" width="1370" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="258" y="150" />
+        <di:waypoint x="310" y="150" />
+        <di:waypoint x="310" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="360" />
+        <di:waypoint x="415" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Tak_Pre_di" bpmnElement="Flow_Tak_Pre">
+        <di:waypoint x="440" y="335" />
+        <di:waypoint x="440" y="150" />
+        <di:waypoint x="520" y="150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="446" y="240" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Nie_Pre_di" bpmnElement="Flow_Nie_Pre">
+        <di:waypoint x="465" y="360" />
+        <di:waypoint x="522" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="485" y="342" width="17" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="620" y="150" />
+        <di:waypoint x="650" y="150" />
+        <di:waypoint x="650" y="590" />
+        <di:waypoint x="680" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
+        <di:waypoint x="780" y="590" />
+        <di:waypoint x="810" y="590" />
+        <di:waypoint x="810" y="360" />
+        <di:waypoint x="840" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
+        <di:waypoint x="940" y="360" />
+        <di:waypoint x="995" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Tak_Eligible_di" bpmnElement="Flow_Tak_Eligible">
+        <di:waypoint x="1020" y="385" />
+        <di:waypoint x="1020" y="590" />
+        <di:waypoint x="1070" y="590" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1026" y="485" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Nie_Eligible_di" bpmnElement="Flow_Nie_Eligible">
+        <di:waypoint x="1045" y="360" />
+        <di:waypoint x="1102" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1065" y="342" width="17" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
+        <di:waypoint x="1170" y="590" />
+        <di:waypoint x="1220" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
+        <di:waypoint x="1320" y="590" />
+        <di:waypoint x="1350" y="590" />
+        <di:waypoint x="1350" y="360" />
+        <di:waypoint x="1380" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8">
+        <di:waypoint x="1480" y="360" />
+        <di:waypoint x="1512" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="222" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="215" y="175" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PreScreening_di" bpmnElement="Task_PreScreening">
+        <dc:Bounds x="260" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PreScreen_OK_di" bpmnElement="Gateway_PreScreen_OK" isMarkerVisible="true">
+        <dc:Bounds x="415" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="403" y="392" width="87" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_eConsent_Patient_di" bpmnElement="Task_eConsent_Patient">
+        <dc:Bounds x="520" y="110" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Validate_Consent_di" bpmnElement="Task_Validate_Consent">
+        <dc:Bounds x="680" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Baseline_Visit_di" bpmnElement="Task_Baseline_Visit">
+        <dc:Bounds x="840" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Eligibility_di" bpmnElement="Gateway_Eligibility" isMarkerVisible="true">
+        <dc:Bounds x="995" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="983" y="306" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Randomization_di" bpmnElement="ServiceTask_Randomization">
+        <dc:Bounds x="1070" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Allocation_di" bpmnElement="ServiceTask_Allocation">
+        <dc:Bounds x="1220" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Dispensing_di" bpmnElement="Task_Dispensing">
+        <dc:Bounds x="1380" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="1512" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1497" y="385" width="67" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Fail_Pre_di" bpmnElement="EndEvent_Fail_Pre">
+        <dc:Bounds x="522" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="502" y="385" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Fail_Base_di" bpmnElement="EndEvent_Fail_Base">
+        <dc:Bounds x="1102" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1085" y="385" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

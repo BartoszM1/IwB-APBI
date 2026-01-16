@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_AE" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.17.0">
+  <bpmn:collaboration id="Collaboration_AE_Reporting">
+    <bpmn:participant id="Participant_AE" name="Proces 2: AE/SAE Reporting &amp; Safety" processRef="Process_AE_SAE" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_AE_SAE" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_AE">
+      <bpmn:lane id="Lane_Uczestnik" name="Uczestnik (Pacjent)">
+        <bpmn:flowNodeRef>StartEvent_ePRO</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Report_ePRO</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Site" name="Ośrodek (PI - Główny Badacz / Koordynator)">
+        <bpmn:flowNodeRef>StartEvent_Site_Visit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Triage</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Source</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Severity</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Update_eCRF</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Manual_IRB_Notify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Close_Event</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Resolved</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_System" name="Systemy (ePRO, EDC, CTMS, Messaging)">
+        <bpmn:flowNodeRef>ServiceTask_Sync_Data</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_Sponsor_Alert</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sponsor" name="Sponsor / Safety Team">
+        <bpmn:flowNodeRef>Event_Receive_SAE</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Safety_Review</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    
+    <bpmn:startEvent id="StartEvent_ePRO" name="Wystąpienie objawów (Dom)">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Report_ePRO" name="1. Zgłoszenie AE w aplikacji ePRO">
+      <bpmn:documentation>Pacjent wypełnia ankietę symptomów.</bpmn:documentation>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="ServiceTask_Sync_Data" name="Synchronizacja z EDC">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:startEvent id="StartEvent_Site_Visit" name="Wystąpienie objawów (Wizyta)">
+      <bpmn:outgoing>Flow_Site_Start</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:exclusiveGateway id="Gateway_Source">
+      <bpmn:incoming>Flow_To_Gateway</bpmn:incoming>
+      <bpmn:incoming>Flow_Site_Start</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Triage</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_Triage" name="2. Triaging i Ocena Medyczna">
+      <bpmn:documentation>PI ocenia związek z badaniem (Causality).</bpmn:documentation>
+      <bpmn:incoming>Flow_To_Triage</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Severity</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Severity" name="3. Ocena ciężkości: Czy to SAE?">
+      <bpmn:documentation>SAE = Serious Adverse Event (zagrożenie życia, hospitalizacja)</bpmn:documentation>
+      <bpmn:incoming>Flow_To_Severity</bpmn:incoming>
+      <bpmn:outgoing>Flow_SAE_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SAE_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="ServiceTask_Sponsor_Alert" name="4a. Notyfikacja Sponsora (Messaging System)">
+      <bpmn:documentation>Automatyczny email/SMS do Safety Team.</bpmn:documentation>
+      <bpmn:incoming>Flow_SAE_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Msg_Sent</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_Manual_IRB_Notify" name="4b. Notyfikacja Komisji Bioetycznej (IRB)">
+      <bpmn:documentation>Wymagane w ciągu 24h.</bpmn:documentation>
+      <bpmn:incoming>Flow_Msg_Sent</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_SAE</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:intermediateCatchEvent id="Event_Receive_SAE" name="Otrzymanie Alertu SAE">
+      <bpmn:outgoing>Flow_Sponsor_1</bpmn:outgoing>
+      <bpmn:messageEventDefinition />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="Task_Safety_Review" name="Nadzór nad bezpieczeństwem (Safety Reporting)">
+      <bpmn:incoming>Flow_Sponsor_1</bpmn:incoming>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_Update_eCRF" name="5. Dodanie szczegółów do eCRF">
+      <bpmn:documentation>Kodowanie MedDRA, opis przebiegu.</bpmn:documentation>
+      <bpmn:incoming>Flow_SAE_No</bpmn:incoming>
+      <bpmn:incoming>Flow_Join_SAE</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Close</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_Close_Event" name="6. Zamknięcie zdarzenia (Outcome)">
+      <bpmn:documentation>Wyleczony / Zmiana dawki / Wycofanie z badania.</bpmn:documentation>
+      <bpmn:incoming>Flow_To_Close</bpmn:incoming>
+      <bpmn:outgoing>Flow_End</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_Resolved" name="Zdarzenie Zamknięte">
+      <bpmn:incoming>Flow_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_ePRO" targetRef="Task_Report_ePRO" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_Report_ePRO" targetRef="ServiceTask_Sync_Data" />
+    <bpmn:sequenceFlow id="Flow_To_Gateway" sourceRef="ServiceTask_Sync_Data" targetRef="Gateway_Source" />
+    <bpmn:sequenceFlow id="Flow_Site_Start" sourceRef="StartEvent_Site_Visit" targetRef="Gateway_Source" />
+    <bpmn:sequenceFlow id="Flow_To_Triage" sourceRef="Gateway_Source" targetRef="Task_Triage" />
+    <bpmn:sequenceFlow id="Flow_To_Severity" sourceRef="Task_Triage" targetRef="Gateway_Severity" />
+    
+    <bpmn:sequenceFlow id="Flow_SAE_Yes" name="TAK (Poważne)" sourceRef="Gateway_Severity" targetRef="ServiceTask_Sponsor_Alert" />
+    <bpmn:sequenceFlow id="Flow_Msg_Sent" sourceRef="ServiceTask_Sponsor_Alert" targetRef="Task_Manual_IRB_Notify" />
+    <bpmn:sequenceFlow id="Flow_Join_SAE" sourceRef="Task_Manual_IRB_Notify" targetRef="Task_Update_eCRF" />
+    
+    <bpmn:sequenceFlow id="Flow_SAE_No" name="NIE (Łagodne)" sourceRef="Gateway_Severity" targetRef="Task_Update_eCRF" />
+    
+    <bpmn:sequenceFlow id="Flow_To_Close" sourceRef="Task_Update_eCRF" targetRef="Task_Close_Event" />
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="Task_Close_Event" targetRef="EndEvent_Resolved" />
+    <bpmn:sequenceFlow id="Flow_Sponsor_1" sourceRef="Event_Receive_SAE" targetRef="Task_Safety_Review" />
+
+    <bpmn:association id="Assoc_Alert" sourceRef="ServiceTask_Sponsor_Alert" targetRef="Event_Receive_SAE" />
+
+  </bpmn:process>
+  
+  <bpmndi:BPMNDiagram id="BPMNDiagram_AE">
+    <bpmndi:BPMNPlane id="BPMNPlane_AE" bpmnElement="Collaboration_AE_Reporting">
+      <bpmndi:BPMNShape id="Participant_Shape" bpmnElement="Participant_AE" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1300" height="750" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Lane_Uczestnik_Shape" bpmnElement="Lane_Uczestnik" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="1270" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Site_Shape" bpmnElement="Lane_Site" isHorizontal="true">
+        <dc:Bounds x="190" y="230" width="1270" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_System_Shape" bpmnElement="Lane_System" isHorizontal="true">
+        <dc:Bounds x="190" y="510" width="1270" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sponsor_Shape" bpmnElement="Lane_Sponsor" isHorizontal="true">
+        <dc:Bounds x="190" y="690" width="1270" height="140" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_ePRO_di" bpmnElement="StartEvent_ePRO">
+        <dc:Bounds x="242" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="228" y="185" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Report_ePRO_di" bpmnElement="Task_Report_ePRO">
+        <dc:Bounds x="320" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Sync_Data_di" bpmnElement="ServiceTask_Sync_Data">
+        <dc:Bounds x="320" y="560" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="StartEvent_Site_Visit_di" bpmnElement="StartEvent_Site_Visit">
+        <dc:Bounds x="242" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="228" y="385" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Source_di" bpmnElement="Gateway_Source" isMarkerVisible="true">
+        <dc:Bounds x="465" y="335" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Triage_di" bpmnElement="Task_Triage">
+        <dc:Bounds x="560" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Severity_di" bpmnElement="Gateway_Severity" isMarkerVisible="true">
+        <dc:Bounds x="715" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="702" y="296" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="ServiceTask_Sponsor_Alert_di" bpmnElement="ServiceTask_Sponsor_Alert">
+        <dc:Bounds x="820" y="560" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Manual_IRB_Notify_di" bpmnElement="Task_Manual_IRB_Notify">
+        <dc:Bounds x="950" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Task_Update_eCRF_di" bpmnElement="Task_Update_eCRF">
+        <dc:Bounds x="1100" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Close_Event_di" bpmnElement="Task_Close_Event">
+        <dc:Bounds x="1250" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Resolved_di" bpmnElement="EndEvent_Resolved">
+        <dc:Bounds x="1402" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1395" y="385" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_Receive_SAE_di" bpmnElement="Event_Receive_SAE">
+        <dc:Bounds x="852" y="742" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="829" y="785" width="83" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Safety_Review_di" bpmnElement="Task_Safety_Review">
+        <dc:Bounds x="950" y="720" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="278" y="160" />
+        <di:waypoint x="320" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="370" y="200" />
+        <di:waypoint x="370" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_To_Gateway_di" bpmnElement="Flow_To_Gateway">
+        <di:waypoint x="420" y="600" />
+        <di:waypoint x="490" y="600" />
+        <di:waypoint x="490" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Site_Start_di" bpmnElement="Flow_Site_Start">
+        <di:waypoint x="278" y="360" />
+        <di:waypoint x="465" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_To_Triage_di" bpmnElement="Flow_To_Triage">
+        <di:waypoint x="515" y="360" />
+        <di:waypoint x="560" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_To_Severity_di" bpmnElement="Flow_To_Severity">
+        <di:waypoint x="660" y="360" />
+        <di:waypoint x="715" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SAE_Yes_di" bpmnElement="Flow_SAE_Yes">
+        <di:waypoint x="740" y="385" />
+        <di:waypoint x="740" y="600" />
+        <di:waypoint x="820" y="600" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="731" y="523" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Msg_Sent_di" bpmnElement="Flow_Msg_Sent">
+        <di:waypoint x="920" y="600" />
+        <di:waypoint x="935" y="600" />
+        <di:waypoint x="935" y="460" />
+        <di:waypoint x="950" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Join_SAE_di" bpmnElement="Flow_Join_SAE">
+        <di:waypoint x="1050" y="460" />
+        <di:waypoint x="1075" y="460" />
+        <di:waypoint x="1075" y="360" />
+        <di:waypoint x="1100" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SAE_No_di" bpmnElement="Flow_SAE_No">
+        <di:waypoint x="765" y="360" />
+        <di:waypoint x="1100" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="793" y="342" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_To_Close_di" bpmnElement="Flow_To_Close">
+        <di:waypoint x="1200" y="360" />
+        <di:waypoint x="1250" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_End_di" bpmnElement="Flow_End">
+        <di:waypoint x="1350" y="360" />
+        <di:waypoint x="1402" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sponsor_1_di" bpmnElement="Flow_Sponsor_1">
+        <di:waypoint x="888" y="760" />
+        <di:waypoint x="950" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Alert_di" bpmnElement="Assoc_Alert">
+        <di:waypoint x="870" y="640" />
+        <di:waypoint x="870" y="742" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
