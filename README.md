@@ -9,7 +9,7 @@ W grupie zadaniowej uczestniczyli:
 1. pomykajczyko             Oskar 59555         
 2. LauraKazmierczyk         Laura 60192
 3. vviktori4                Wiktoria 58320
-4. BartoszM1                Bartosz 59552
+4. BartoszM1                Bartosz Malczewski - 59552
 5. gracjan062003-debug      Gracjan 58324
 6. Worshox                  Wojciech 64905
 7. zuzannakornacka888-cmd   Zuzanna 59551
